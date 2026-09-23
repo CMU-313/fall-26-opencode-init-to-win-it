@@ -15,6 +15,7 @@ import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
+import { StudentMode } from "./student-mode"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import path from "path"
@@ -307,6 +308,17 @@ const layer = Layer.effect(
             agents[name].permission,
             Permission.fromConfig({ external_directory: { [Truncate.GLOB]: "allow" } }),
           )
+        }
+
+        // Task 3: when student mode is on, deny file-write (edit) and execute (bash).
+        // Task 2 will own the real toggle; `StudentMode.enabled` is the provisional hook.
+        const studentMode = StudentMode.enabled({
+          config: { student_mode: (cfg as { student_mode?: boolean }).student_mode },
+        })
+        if (studentMode) {
+          for (const name in agents) {
+            agents[name].permission = StudentMode.apply(agents[name].permission, true)
+          }
         }
 
         const get = Effect.fnUntraced(function* (agent: string) {
