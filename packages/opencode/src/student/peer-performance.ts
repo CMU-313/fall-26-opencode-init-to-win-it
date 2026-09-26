@@ -6,7 +6,7 @@ export type PerformanceNote = {
   student: string
   questionCount: number
   attemptQuality: number
-  stuckPoints: string[]
+  stuckPoints: readonly string[]
 }
 
 type Store = {
@@ -150,7 +150,7 @@ function improvement(
   return "You are at or ahead of the class on questions and attempt quality. Test a case you have not tried yet."
 }
 
-function list(values: string[]) {
+function list(values: readonly string[]) {
   if (values.length === 0) return "none"
   return values.join(", ")
 }
