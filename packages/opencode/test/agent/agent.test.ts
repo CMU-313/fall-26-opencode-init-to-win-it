@@ -753,3 +753,74 @@ it.instance(
     },
   },
 )
+
+const studentModeConfig = {
+  student_mode: true,
+  default_agent: "build",
+  agent: {
+    TA: { description: "Teaching assistant", mode: "primary" as const },
+    my_custom: { description: "My custom agent" },
+  },
+}
+
+it.instance(
+  "student_mode forces TA as the default agent over default_agent",
+  () =>
+    Effect.gen(function* () {
+      expect(yield* load((svc) => svc.defaultAgent())).toBe("TA")
+      const list = yield* load((svc) => svc.list())
+      expect(list[0]?.name).toBe("TA")
+    }),
+  { config: studentModeConfig },
+)
+
+it.instance(
+  "student_mode leaves TA as the only selectable primary agent",
+  () =>
+    Effect.gen(function* () {
+      const primaries = (yield* load((svc) => svc.list()))
+        .filter((agent) => agent.mode !== "subagent" && !agent.hidden)
+        .map((agent) => agent.name)
+      expect(primaries).toEqual(["TA"])
+    }),
+  { config: studentModeConfig },
+)
+
+it.instance(
+  "student_mode resolves requests for other primary agents to TA",
+  () =>
+    Effect.gen(function* () {
+      expect((yield* load((svc) => svc.get("build")))?.name).toBe("TA")
+      expect((yield* load((svc) => svc.get("plan")))?.name).toBe("TA")
+    }),
+  { config: studentModeConfig },
+)
+
+it.instance(
+  "student_mode keeps subagents and internal agents available",
+  () =>
+    Effect.gen(function* () {
+      expect((yield* load((svc) => svc.get("explore")))?.name).toBe("explore")
+      expect((yield* load((svc) => svc.get("title")))?.name).toBe("title")
+      const custom = yield* load((svc) => svc.get("my_custom"))
+      expect(custom?.name).toBe("my_custom")
+      expect(custom?.mode).toBe("subagent")
+    }),
+  { config: studentModeConfig },
+)
+
+it.instance(
+  "defaultAgent throws when student_mode is enabled without a TA agent",
+  () => expectDefaultAgentError('student_mode is enabled but agent "TA" was not found'),
+  { config: { student_mode: true } },
+)
+
+it.instance(
+  "student_mode off keeps other primary agents selectable",
+  () =>
+    Effect.gen(function* () {
+      expect(yield* load((svc) => svc.defaultAgent())).toBe("build")
+      expect((yield* load((svc) => svc.get("plan")))?.name).toBe("plan")
+    }),
+  { config: { student_mode: false, agent: { TA: { mode: "primary" as const } } } },
+)
