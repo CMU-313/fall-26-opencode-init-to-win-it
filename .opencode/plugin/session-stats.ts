@@ -1,7 +1,16 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
-import { writeAssignment } from "../assignment"
+import { readAssignment, recordAssignmentQuery, writeAssignment } from "../assignment"
 
 export default (async (input) => ({
+  event: async ({ event }) => {
+    if (event.type !== "message.updated") return
+    const message = event.properties.info
+    if (message.role !== "user") return
+
+    const assignment = await readAssignment(input.worktree)
+    if (!assignment) return
+    await recordAssignmentQuery(input.worktree, assignment, message.id)
+  },
   tool: {
     session_stats: tool({
       description: "Statistics for the current session: prompts sent, steps, cost",
