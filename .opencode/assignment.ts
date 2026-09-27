@@ -20,3 +20,39 @@ export async function writeAssignment(worktree: string, assignment: string) {
   await Bun.write(file, JSON.stringify({ assignment }, null, 2) + "\n")
   return file
 }
+
+export function queryLogPath(worktree: string) {
+  return join(worktree, ".opencode", "assignment-queries.jsonl")
+}
+
+export async function recordAssignmentQuery(worktree: string, assignment: string, messageID: string) {
+  const { appendFile } = await import("node:fs/promises")
+  await appendFile(queryLogPath(worktree), JSON.stringify({ assignment, messageID }) + "\n")
+}
+
+export async function readAssignmentCounts(worktree: string): Promise<Record<string, number>> {
+  const file = Bun.file(queryLogPath(worktree))
+  if (!(await file.exists())) return {}
+
+  const counts: Record<string, number> = {}
+  const seen = new Set<string>()
+
+  for (const line of (await file.text()).split("\n")) {
+    if (!line) continue
+    const entry: unknown = JSON.parse(line)
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      !("assignment" in entry) ||
+      !("messageID" in entry) ||
+      typeof entry.assignment !== "string" ||
+      typeof entry.messageID !== "string" ||
+      seen.has(entry.messageID)
+    ) continue
+
+    seen.add(entry.messageID)
+    counts[entry.assignment] = (counts[entry.assignment] ?? 0) + 1
+  }
+
+  return counts
+}
