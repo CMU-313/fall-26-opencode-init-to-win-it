@@ -56,6 +56,9 @@ export const Info = Schema.Struct({
 }).annotate({ identifier: "Agent" })
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
 
+/** The primary agent that `student_mode` forces, defined in `.opencode/agents/TA.md`. */
+export const STUDENT_AGENT = "TA"
+
 const GeneratedAgent = Schema.Struct({
   identifier: Schema.String,
   whenToUse: Schema.String,
@@ -321,7 +324,23 @@ const layer = Layer.effect(
           }
         }
 
+        // Student mode makes TA the only selectable primary agent. Other primary agents are
+        // hidden and any request for them resolves to TA; "all" agents remain usable as subagents.
+        const locked = new Set<string>()
+        if (cfg.student_mode) {
+          for (const [key, agent] of Object.entries(agents)) {
+            if (key === STUDENT_AGENT || agent.mode === "subagent" || agent.hidden) continue
+            if (agent.mode === "all") {
+              agent.mode = "subagent"
+              continue
+            }
+            agent.hidden = true
+            locked.add(key)
+          }
+        }
+
         const get = Effect.fnUntraced(function* (agent: string) {
+          if (locked.has(agent)) return agents[STUDENT_AGENT]
           return agents[agent]
         })
 
@@ -331,7 +350,15 @@ const layer = Layer.effect(
             agents,
             values(),
             sortBy(
-              [(x) => (cfg.default_agent ? x.name === cfg.default_agent : x.name === "build"), "desc"],
+              [
+                (x) =>
+                  cfg.student_mode
+                    ? x.name === STUDENT_AGENT
+                    : cfg.default_agent
+                      ? x.name === cfg.default_agent
+                      : x.name === "build",
+                "desc",
+              ],
               [(x) => x.name, "asc"],
             ),
           )
@@ -339,6 +366,13 @@ const layer = Layer.effect(
 
         const defaultInfo = Effect.fnUntraced(function* () {
           const c = yield* config.get()
+          if (c.student_mode) {
+            const agent = agents[STUDENT_AGENT]
+            if (!agent) throw new Error(`student_mode is enabled but agent "${STUDENT_AGENT}" was not found`)
+            if (agent.mode === "subagent") throw new Error(`student_mode agent "${STUDENT_AGENT}" is a subagent`)
+            if (agent.hidden === true) throw new Error(`student_mode agent "${STUDENT_AGENT}" is hidden`)
+            return agent
+          }
           if (c.default_agent) {
             const agent = agents[c.default_agent]
             if (!agent) throw new Error(`default agent "${c.default_agent}" not found`)
