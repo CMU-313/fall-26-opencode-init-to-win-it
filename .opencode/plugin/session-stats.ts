@@ -1,4 +1,5 @@
 import { tool, type Plugin } from "@opencode-ai/plugin"
+import { writeAssignment } from "../assignment"
 
 export default (async (input) => ({
   tool: {
@@ -8,6 +9,7 @@ export default (async (input) => ({
         assignment: tool.schema.string().describe("Assignment name, e.g. hw2"),
       },
       async execute(args, ctx) {
+        const saved = await writeAssignment(input.worktree, args.assignment)
         const messages = (await input.client.session.messages({ path: { id: ctx.sessionID } })).data ?? []
         const parts = messages.flatMap((m) => m.parts)
         const prompts = messages.filter(
@@ -16,6 +18,7 @@ export default (async (input) => ({
         const steps = parts.filter((p) => p.type === "step-finish")
         return [
           `assignment: ${args.assignment}`,
+          `saved to: ${saved}`,
           `prompts sent: ${prompts}`,
           `assistant steps: ${steps.length}`,
           `cost: ${steps.reduce((total, p) => total + p.cost, 0).toFixed(4)}`,
