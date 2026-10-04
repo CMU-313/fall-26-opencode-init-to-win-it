@@ -320,7 +320,7 @@ const layer = Layer.effect(
         })
         if (studentMode) {
           for (const name in agents) {
-            agents[name].permission = StudentMode.apply(agents[name].permission, true)
+            agents[name].permission = [...StudentMode.apply(agents[name].permission, true)]
           }
         }
 
