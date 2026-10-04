@@ -31,6 +31,12 @@ describe("Hint.template", () => {
     expect(Hint.template(3)).toContain("hint level 3 of 3 (Worked analogy)")
   })
 
+  test("tells the model to label the reply with the hint level", () => {
+    for (const level of [1, 2, 3] as const) {
+      expect(Hint.template(level)).toContain(`start the reply with 'Hint ${level}/3:'`)
+    }
+  })
+
   test("keeps the no-answer guardrails at every level", () => {
     for (const level of [1, 2, 3] as const) {
       expect(Hint.template(level)).toContain("Never write the solution or code for their problem")
