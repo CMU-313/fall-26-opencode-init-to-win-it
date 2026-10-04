@@ -1370,17 +1370,22 @@ const layer = Layer.effect(
       }
       const agentName = cmd.agent ?? input.agent
 
-      const raw = input.arguments.match(argsRegex) ?? []
-      const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
-      // /hint escalates: each earlier /hint in this session moves the next one up a level.
-      const hintLevel =
-        input.command === Command.Default.HINT
-          ? Hint.next(
+      // /hint escalates: each earlier /hint in this session moves the next one up a level,
+      // and `/hint new` starts over at level 1. The reset word is not passed to the model.
+      const hint = input.command === Command.Default.HINT ? Hint.parse(input.arguments) : undefined
+      const commandArguments = hint?.question ?? input.arguments
+      const hintLevel = hint
+        ? hint.reset
+          ? 1
+          : Hint.next(
               Hint.count(
                 (yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)).flatMap((msg) => msg.parts),
               ),
             )
-          : undefined
+        : undefined
+
+      const raw = commandArguments.match(argsRegex) ?? []
+      const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
       const templateCommand = hintLevel
         ? Hint.template(hintLevel)
         : yield* Effect.promise(async () => cmd.template)
@@ -1400,10 +1405,10 @@ const layer = Layer.effect(
         return args[argIndex]
       })
       const usesArgumentsPlaceholder = templateCommand.includes("$ARGUMENTS")
-      let template = withArgs.replaceAll("$ARGUMENTS", input.arguments)
+      let template = withArgs.replaceAll("$ARGUMENTS", commandArguments)
 
-      if (placeholders.length === 0 && !usesArgumentsPlaceholder && input.arguments.trim()) {
-        template = template + "\n\n" + input.arguments
+      if (placeholders.length === 0 && !usesArgumentsPlaceholder && commandArguments.trim()) {
+        template = template + "\n\n" + commandArguments
       }
 
       const shellMatches = ConfigMarkdown.shell(template)

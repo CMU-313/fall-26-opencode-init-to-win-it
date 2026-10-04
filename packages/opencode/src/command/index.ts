@@ -91,7 +91,7 @@ const layer = Layer.effect(
       // The level-specific template is built per call in SessionPrompt.command, which knows the session.
       commands[Default.HINT] = {
         name: Default.HINT,
-        description: "get a hint that escalates each time you ask (3 levels)",
+        description: "get a hint that escalates each time you ask (3 levels); /hint new starts over",
         source: "command",
         template: Hint.template(1),
         hints: ["$ARGUMENTS"],

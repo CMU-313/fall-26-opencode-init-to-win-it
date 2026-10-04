@@ -22,6 +22,32 @@ describe("Hint.count", () => {
     ]
     expect(Hint.count(parts)).toBe(2)
   })
+
+  test("counts only the hints since the student last started over at level 1", () => {
+    const hints = (levels: number[]) => levels.map((level) => textPart({ [Hint.METADATA_KEY]: level }))
+    expect(Hint.count(hints([]))).toBe(0)
+    expect(Hint.count(hints([1, 2, 3, 3]))).toBe(4)
+    expect(Hint.count(hints([1, 2, 3, 1]))).toBe(1)
+    expect(Hint.count(hints([1, 2, 1, 2]))).toBe(2)
+  })
+})
+
+describe("Hint.parse", () => {
+  test("starts over when the first word is new or reset, and drops that word", () => {
+    expect(Hint.parse("new")).toEqual({ reset: true, question: "" })
+    expect(Hint.parse("  RESET  why is my tree unbalanced?")).toEqual({
+      reset: true,
+      question: "why is my tree unbalanced?",
+    })
+  })
+
+  test("keeps escalating for any other arguments", () => {
+    expect(Hint.parse("")).toEqual({ reset: false, question: "" })
+    expect(Hint.parse("newline characters break my parser")).toEqual({
+      reset: false,
+      question: "newline characters break my parser",
+    })
+  })
 })
 
 describe("Hint.template", () => {

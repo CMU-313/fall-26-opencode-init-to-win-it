@@ -41,9 +41,26 @@ export type Level = 1 | 2 | 3
 /** Metadata key stamped on the text part of every `/hint` message, holding its level. */
 export const METADATA_KEY = "hint"
 
-/** Count how many `/hint` calls a session already has, from its message parts. */
+/**
+ * Count the `/hint` calls since the student last started over, from a session's message parts.
+ * Level 1 only happens at the start or right after `/hint new`, so counting from the latest
+ * level 1 hint gives the hints for the current problem.
+ */
 export function count(parts: SessionV1.Part[]) {
-  return parts.filter((part) => part.type === "text" && typeof part.metadata?.[METADATA_KEY] === "number").length
+  const levels = parts.flatMap((part) =>
+    part.type === "text" && typeof part.metadata?.[METADATA_KEY] === "number" ? [part.metadata[METADATA_KEY]] : [],
+  )
+  return levels.length - Math.max(levels.lastIndexOf(1), 0)
+}
+
+/** Words that, as the first argument, make `/hint` start over at level 1 for a new problem. */
+export const RESET_WORDS = ["new", "reset"]
+
+/** Split `/hint` arguments into whether the student is starting over and the question that remains. */
+export function parse(args: string) {
+  const [first = "", ...rest] = args.trim().split(/\s+/)
+  const reset = RESET_WORDS.includes(first.toLowerCase())
+  return { reset, question: reset ? rest.join(" ") : args }
 }
 
 /** The level for the next `/hint` call: one above the previous call, capped at the last rung. */
