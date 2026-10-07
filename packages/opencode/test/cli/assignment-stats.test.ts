@@ -26,3 +26,39 @@ test("records queries by assignment without counting the same message twice", as
     await rm(worktree, { recursive: true, force: true })
   }
 })
+test("returns empty counts when the query log does not exist", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const { readAssignmentCounts } = await import("../../../../.opencode/assignment")
+
+  const worktree = await mkdtemp(join(tmpdir(), "assignment-stats-missing-"))
+  try {
+    const counts = await readAssignmentCounts(worktree)
+
+    expect(counts).toEqual({})
+    expect(formatAssignmentStats(counts)).toBe("No assignment queries recorded.")
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+})
+
+test("returns empty counts when the query log is empty", async () => {
+  const { mkdtemp, mkdir, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const { queryLogPath, readAssignmentCounts } = await import("../../../../.opencode/assignment")
+
+  const worktree = await mkdtemp(join(tmpdir(), "assignment-stats-empty-"))
+  try {
+    await mkdir(join(worktree, ".opencode"))
+    await Bun.write(queryLogPath(worktree), "")
+
+    const counts = await readAssignmentCounts(worktree)
+
+    expect(counts).toEqual({})
+    expect(formatAssignmentStats(counts)).toBe("No assignment queries recorded.")
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+})
