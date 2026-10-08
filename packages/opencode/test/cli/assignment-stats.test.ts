@@ -95,3 +95,38 @@ test("ignores invalid records while counting valid queries", async () => {
     await rm(worktree, { recursive: true, force: true })
   }
 })
+test("duplicate queries preserve counts and a new query increments only its assignment", async () => {
+  const { mkdtemp, mkdir, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const { recordAssignmentQuery, readAssignmentCounts } = await import("../../../../.opencode/assignment")
+
+  const worktree = await mkdtemp(join(tmpdir(), "assignment-stats-properties-"))
+  try {
+    await mkdir(join(worktree, ".opencode"))
+
+    await recordAssignmentQuery(worktree, "hw1", "message-1")
+    await recordAssignmentQuery(worktree, "hw2", "message-2")
+
+    const before = await readAssignmentCounts(worktree)
+    expect(before).toEqual({ hw1: 1, hw2: 1 })
+
+    // Repeating existing messages must not change the counts.
+    await recordAssignmentQuery(worktree, "hw1", "message-1")
+    await recordAssignmentQuery(worktree, "hw2", "message-2")
+
+    const afterDuplicates = await readAssignmentCounts(worktree)
+    expect(afterDuplicates).toEqual(before)
+
+    // A new message must increment only its assignment.
+    await recordAssignmentQuery(worktree, "hw1", "message-3")
+
+    const afterNewQuery = await readAssignmentCounts(worktree)
+    expect(afterNewQuery).toEqual({
+      ...before,
+      hw1: before.hw1! + 1,
+    })
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+})
