@@ -69,6 +69,10 @@ export const Flag = {
   get OPENCODE_PERMISSION() {
     return process.env["OPENCODE_PERMISSION"]
   },
+  /** Provisional Task 3 hook until Task 2 owns student-mode toggle/config. */
+  get OPENCODE_STUDENT_MODE() {
+    return truthy("OPENCODE_STUDENT_MODE")
+  },
   get OPENCODE_PLUGIN_META_FILE() {
     return process.env["OPENCODE_PLUGIN_META_FILE"]
   },
