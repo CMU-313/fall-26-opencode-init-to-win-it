@@ -130,3 +130,27 @@ test("duplicate queries preserve counts and a new query increments only its assi
     await rm(worktree, { recursive: true, force: true })
   }
 })
+test("skips malformed JSON lines and continues counting valid queries", async () => {
+  const { mkdtemp, mkdir, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const { queryLogPath, readAssignmentCounts } = await import("../../../../.opencode/assignment")
+
+  const worktree = await mkdtemp(join(tmpdir(), "assignment-stats-malformed-"))
+  try {
+    await mkdir(join(worktree, ".opencode"))
+
+    const lines = [
+      JSON.stringify({ assignment: "hw1", messageID: "message-1" }),
+      "{broken json",
+      JSON.stringify({ assignment: "hw2", messageID: "message-2" }),
+      JSON.stringify({ assignment: "hw1", messageID: "message-3" }),
+    ]
+
+    await Bun.write(queryLogPath(worktree), lines.join("\n") + "\n")
+
+    expect(await readAssignmentCounts(worktree)).toEqual({ hw1: 2, hw2: 1 })
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+})
