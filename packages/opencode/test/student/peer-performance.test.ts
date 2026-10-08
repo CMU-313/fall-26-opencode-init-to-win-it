@@ -39,6 +39,22 @@ describe("summarizeAgainstPeers", () => {
     expect(summary.summary).toContain("behind")
     expect(summary.summary).toContain("common miss")
   })
+
+  test("ignores notes from other assignments when comparing classmates", () => {
+    const summary = summarizeAgainstPeers(grace, [
+      ada,
+      { ...ada, student: "linus", assignment: "hw2", questionCount: 20, attemptQuality: 1, stuckPoints: ["recursion"] },
+    ])
+    expect(summary.peerCount).toBe(1)
+    expect(summary.questionAverage).toBe(2)
+    expect(summary.qualityAverage).toBe(4)
+    expect(summary.commonStuckPoints).not.toContain("recursion")
+  })
+
+  test("includes an improvement suggestion when peers exist", () => {
+    const summary = summarizeAgainstPeers(grace, [ada])
+    expect(summary.summary).toMatch(/Review that|Redo the part|Try one more attempt|Test a case/)
+  })
 })
 
 describe("recordPerformance", () => {

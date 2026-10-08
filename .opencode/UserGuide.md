@@ -4,3 +4,5 @@
 
 **Features**
 
+The course copy of this guide, including student-mode write/shell blocking and peer classmate comparison, is `UserGuide.md` in the repository root.
+
