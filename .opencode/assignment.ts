@@ -39,7 +39,14 @@ export async function readAssignmentCounts(worktree: string): Promise<Record<str
 
   for (const line of (await file.text()).split("\n")) {
     if (!line) continue
-    const entry: unknown = JSON.parse(line)
+    let entry: unknown
+
+    try {
+      entry = JSON.parse(line)
+    } catch {
+      continue
+    }
+    
     if (
       typeof entry !== "object" ||
       entry === null ||
