@@ -1816,6 +1816,31 @@ unix(
   30_000,
 )
 
+it.instance(
+  "hint command escalates one level per call and stays at the last level",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, sessions, chat } = yield* boot()
+
+      for (const _ of [1, 2, 3, 4]) {
+        yield* llm.text("hint")
+        yield* prompt.command({ sessionID: chat.id, command: "hint", arguments: "why does my loop stop early?" })
+      }
+
+      const inputs = yield* llm.inputs
+      const levels = inputs.map((input) => JSON.stringify(input.messages).match(/hint level (\d) of 3/g)?.at(-1))
+      expect(levels).toEqual(["hint level 1 of 3", "hint level 2 of 3", "hint level 3 of 3", "hint level 3 of 3"])
+      expect(JSON.stringify(inputs[0]?.messages)).toContain("why does my loop stop early?")
+
+      const stamped = (yield* sessions.messages({ sessionID: chat.id }))
+        .flatMap((msg) => msg.parts)
+        .flatMap((part) => (part.type === "text" && part.metadata?.hint ? [part.metadata.hint] : []))
+      expect(stamped).toEqual([1, 2, 3, 3])
+    }),
+  30_000,
+)
+
 unixNoLLMServer(
   "cancel interrupts shell and resolves cleanly",
   () =>

@@ -25,6 +25,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import * as Stream from "effect/Stream"
 import { Command } from "../command"
+import { Hint } from "../command/hint"
 import { pathToFileURL, fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { ConfigMarkdown } from "@/config/markdown"
@@ -1371,7 +1372,18 @@ const layer = Layer.effect(
 
       const raw = input.arguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
-      const templateCommand = yield* Effect.promise(async () => cmd.template)
+      // /hint escalates: each earlier /hint in this session moves the next one up a level.
+      const hintLevel =
+        input.command === Command.Default.HINT
+          ? Hint.next(
+              Hint.count(
+                (yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)).flatMap((msg) => msg.parts),
+              ),
+            )
+          : undefined
+      const templateCommand = hintLevel
+        ? Hint.template(hintLevel)
+        : yield* Effect.promise(async () => cmd.template)
 
       const placeholders = templateCommand.match(placeholderRegex) ?? []
       let last = 0
@@ -1429,7 +1441,9 @@ const layer = Layer.effect(
         throw error
       }
 
-      const templateParts = yield* resolvePromptParts(template)
+      const templateParts = (yield* resolvePromptParts(template)).map((part) =>
+        hintLevel && part.type === "text" ? { ...part, metadata: { [Hint.METADATA_KEY]: hintLevel } } : part,
+      )
       const inputFiles = new Set(
         input.parts?.filter((part) => new URL(part.url).protocol === "file:").map((part) => fileURLToPath(part.url)),
       )

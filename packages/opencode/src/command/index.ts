@@ -9,6 +9,7 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import { Hint } from "./hint"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -46,6 +47,7 @@ export function hints(template: string) {
 export const Default = {
   INIT: "init",
   REVIEW: "review",
+  HINT: "hint",
 } as const
 
 export interface Interface {
@@ -85,6 +87,14 @@ const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+      // The level-specific template is built per call in SessionPrompt.command, which knows the session.
+      commands[Default.HINT] = {
+        name: Default.HINT,
+        description: "get a hint that escalates each time you ask (3 levels)",
+        source: "command",
+        template: Hint.template(1),
+        hints: ["$ARGUMENTS"],
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
