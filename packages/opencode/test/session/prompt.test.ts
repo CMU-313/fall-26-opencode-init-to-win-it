@@ -1841,6 +1841,28 @@ it.instance(
   30_000,
 )
 
+it.instance(
+  "hint new starts the hint levels over at level 1",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+
+      for (const args of ["", "", "new why is my tree unbalanced?", ""]) {
+        yield* llm.text("hint")
+        yield* prompt.command({ sessionID: chat.id, command: "hint", arguments: args })
+      }
+
+      const inputs = yield* llm.inputs
+      const levels = inputs.map((input) => JSON.stringify(input.messages).match(/hint level (\d) of 3/g)?.at(-1))
+      expect(levels).toEqual(["hint level 1 of 3", "hint level 2 of 3", "hint level 1 of 3", "hint level 2 of 3"])
+      const reset = JSON.stringify(inputs[2]?.messages)
+      expect(reset).toContain("why is my tree unbalanced?")
+      expect(reset).not.toContain("new why is my tree unbalanced?")
+    }),
+  30_000,
+)
+
 unixNoLLMServer(
   "cancel interrupts shell and resolves cleanly",
   () =>
