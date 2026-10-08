@@ -93,6 +93,89 @@ bun test test/student/peer-performance.test.ts
 
 `peer_summary` calls `recordPerformance`, which calls `summarizeAgainstPeers`. These tests exercise that same code, so they cover the comparison the agent reports back to the student.
 
+## Student mode lock: TA is the only agent
+
+Owned by Vaishnavi (`vaishnavipalas`), issue #19, merged in pull requests #21 and #28.
+
+### What it does
+
+With `student_mode` on, TA is the only primary agent. Build and Plan are hidden, and any request for them (Tab, the API, old sessions) gets TA instead. Subagents still work.
+
+### How to turn it on
+
+Add this to `.opencode/opencode.json`:
+
+```json
+{ "student_mode": true }
+```
+
+The TA agent must exist at `.opencode/agents/TA.md`, or opencode shows an error.
+
+### How to user-test
+
+1. Turn on `student_mode` and run `bun dev`.
+2. Confirm the prompt says **TA** and Tab doesn't switch agents.
+3. Set `student_mode` to `false` and confirm Build and Plan come back.
+
+### Automated tests
+
+Files: `packages/opencode/test/agent/agent.test.ts` and `packages/opencode/test/session/prompt.test.ts`
+
+```bash
+bun test test/agent/agent.test.ts -t student_mode
+bun test test/session/prompt.test.ts -t student_mode
+```
+
+| Acceptance criterion | Test |
+|---|---|
+| TA is the default, even over `default_agent` | `student_mode forces TA as the default agent over default_agent` |
+| TA is the only agent you can pick | `student_mode leaves TA as the only selectable primary agent` |
+| Requests for Build or Plan get TA | `student_mode resolves requests for other primary agents to TA` and `student_mode runs prompts for other primary agents as TA` |
+| Subagents still work | `student_mode keeps subagents and internal agents available` |
+| Missing TA gives an error | `defaultAgent throws when student_mode is enabled without a TA agent` |
+| Flag off changes nothing | `student_mode off keeps other primary agents selectable` |
+
+Every way of picking an agent goes through `Agent.get()`, and it's tested both directly and through a real prompt, so the lock is covered everywhere. The prompt test fails if the redirect to TA is removed.
+
+## `/hint`: hints that get more detailed each time
+
+Owned by Vaishnavi (`vaishnavipalas`), issues #20 and #29, merged in pull requests #22 and #30.
+
+### What it does
+
+Each `/hint` in a session gives more help, without giving code or the answer:
+
+1. **Nudge**: guiding questions about where to look.
+2. **Direction**: names the concept and gives one clue.
+3. **Worked analogy**: an example on a different problem.
+
+It stays at level 3 after that. `/hint new` starts over at level 1 for a new problem.
+
+### How to user-test
+
+1. Run `bun dev` and switch to **TA**.
+2. Type `/hint <your question>`, then `/hint` twice. Replies should go Hint 1/3 → 2/3 → 3/3.
+3. Type `/hint new <another question>`. It should go back to Hint 1/3.
+
+### Automated tests
+
+Files: `packages/opencode/test/command/hint.test.ts` and `packages/opencode/test/session/prompt.test.ts`
+
+```bash
+bun test ./test/command/hint.test.ts
+bun test test/session/prompt.test.ts -t hint
+```
+
+| Acceptance criterion | Test |
+|---|---|
+| Levels go 1 → 2 → 3 and stay at 3 | `escalates one level per earlier hint and caps at level 3` and `hint command escalates one level per call and stays at the last level` |
+| Each level sends a different instruction | `injects the instruction for the requested level` |
+| No level gives code or the answer | `keeps the no-answer guardrails at every level` |
+| `/hint new` starts over at level 1 | `starts over when the first word is new or reset, and drops that word` and `hint new starts the hint levels over at level 1` |
+| Normal questions don't reset | `keeps escalating for any other arguments` |
+
+The logic is tested by itself and through the real `/hint` command, and the end-to-end tests fail if escalation or reset is broken. Tests can't check how the model words its reply, so that part is checked with the user-test steps.
+
 ## Other team features
 
-TA mode, the `student_mode` agent lock, `/hint`, and assignment query stats are documented by the teammates who implemented them. A short TA-mode note also lives in `.opencode/UserGuide.md`.
+TA mode and assignment query stats are documented by the teammates who implemented them. A short TA-mode note also lives in `.opencode/UserGuide.md`.
