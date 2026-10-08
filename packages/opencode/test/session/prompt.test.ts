@@ -2356,6 +2356,27 @@ noLLMServer.instance(
 // Agent / command resolution errors
 
 noLLMServer.instance(
+  "student_mode runs prompts for other primary agents as TA",
+  () =>
+    Effect.gen(function* () {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({})
+      for (const agent of ["build", "plan"]) {
+        const result = yield* prompt.prompt({
+          sessionID: session.id,
+          agent,
+          noReply: true,
+          parts: [{ type: "text", text: "hello" }],
+        })
+        expect(result.info.role === "user" && result.info.agent).toBe("TA")
+      }
+    }),
+  { config: { student_mode: true, agent: { TA: { mode: "primary" } } } },
+  30_000,
+)
+
+noLLMServer.instance(
   "unknown agent throws typed error",
   () =>
     Effect.gen(function* () {

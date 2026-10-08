@@ -81,6 +81,10 @@ export const Info = Schema.Struct({
     description:
       "Default agent to use when none is specified. Must be a primary agent. Falls back to 'build' if not set or if the specified agent is invalid.",
   }),
+  student_mode: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Force Student mode for this project. When true, the 'TA' agent is the only selectable primary agent and switching to any other primary agent is blocked.",
+  }),
   subagent_depth: Schema.optional(NonNegativeInt).annotate({
     description: "Maximum subagent nesting depth. Defaults to 1, which prevents subagents from launching subagents.",
   }),
