@@ -1,6 +1,6 @@
 # User Guide
 
-How to use and check the Init-to-Win-It student features. The course deliverable lives in this file at the repository root.
+How to use and check the Init-to-Win-It student features. 
 
 ## Student mode: block file writes and shell commands
 
@@ -93,6 +93,31 @@ bun test test/student/peer-performance.test.ts
 
 `peer_summary` calls `recordPerformance`, which calls `summarizeAgainstPeers`. These tests exercise that same code, so they cover the comparison the agent reports back to the student.
 
-## Other team features
 
-TA mode, the `student_mode` agent lock, `/hint`, and assignment query stats are documented by the teammates who implemented them. A short TA-mode note also lives in `.opencode/UserGuide.md`.
+### Session `/stats` owned by Kyle Luo 'dinoflask'
+
+The `/stats <assignment>` command calls the `session_stats` plugin tool and reports the assignment name, number of real user prompts, assistant step count, and total step cost. The assignment value is also saved in `.opencode/assignment.json`.
+
+Automated tests: `packages/opencode/test/student/session-stats.test.ts`.
+
+The tests use controlled session message fixtures to verify normal prompts, synthetic-only prompts, and empty sessions. These cases work without depending on a live model.
+
+Run them from `packages/opencode`:
+
+```bash
+bun test test/student/session-stats.test.ts
+```
+
+### TA mode
+
+The TA agent is defined in `.opencode/agents/TA.md`. It is a primary agent whose frontmatter denies `edit` and `bash`; its prompt requires teaching and explanation without writing solutions or revealing answer keys.
+
+Automated tests: `packages/opencode/test/student/ta-mode.test.ts`.
+
+The tests verify that the edit and shell restrictions and the non-revealing teaching contract weren't modified (possibly by a student). Because model responses are probabilistic and real users will be using different agents, a deterministic unit test cannot establish that a model will satisfy the contract for every prompt. For final verification, manually select the TA agent with `Tab` and try prompts asking it to write code, fix code, reveal an answer, or run a command; then try explanation, debugging-method, and hint requests and confirm the TA remains helpful without performing the restricted actions.
+
+Run them from `packages/opencode`:
+
+```bash
+bun test test/student/ta-mode.test.ts
+```
