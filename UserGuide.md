@@ -121,3 +121,68 @@ Run them from `packages/opencode`:
 ```bash
 bun test test/student/ta-mode.test.ts
 ```
+
+## Assignment statistics: track queries by assignment
+
+Owned by Coral (`CoralZhu`), implemented in PR #27 and tested in PR #33.
+
+### What it does
+
+The `assignment-stats` command shows how many queries were recorded for each assignment. It reads `.opencode/assignment-queries.jsonl` from the Git worktree and counts unique message IDs to avoid counting the same query twice.
+
+If no queries are recorded, it displays `No assignment queries recorded.`
+
+### How to use
+
+From `packages/opencode`, run:
+
+```bash
+bun run dev assignment-stats
+```
+
+Example output:
+
+```text
+hw1: 2 queries
+hw2: 1 query
+```
+
+### How to user-test
+
+1. Create or open a Git repository.
+2. Create `.opencode/assignment-queries.jsonl` in that repository with these records:
+
+```text
+{"assignment":"hw1","messageID":"message-1"}
+{"assignment":"hw1","messageID":"message-2"}
+{"assignment":"hw2","messageID":"message-3"}
+```
+
+3. Run the `assignment-stats` command from that Git repository using the OpenCode CLI.
+4. Verify that the output shows `hw1: 2 queries` and `hw2: 1 query`.
+5. Add a duplicate record with the same message ID and confirm the count does not increase.
+6. Add a new record with a unique message ID and verify that only the corresponding assignment's count increases.
+7. Remove or empty the log file and verify that the command displays `No assignment queries recorded.`
+
+### Automated tests
+
+File: `packages/opencode/test/cli/assignment-stats.test.ts`
+
+From `packages/opencode`:
+
+```bash
+bun test test/cli/assignment-stats.test.ts
+```
+
+| Acceptance criterion | What the test checks |
+|---|---|
+| Displays query counts by assignment | `displays query counts by assignment` |
+| Does not count duplicate messages | `records queries by assignment without counting the same message twice` |
+| Handles missing query logs | `returns empty counts when the query log does not exist` |
+| Handles empty query logs | `returns empty counts when the query log is empty` |
+| Ignores invalid records | `ignores invalid records while counting valid queries` |
+| Preserves counts for duplicates and increments for new queries | `duplicate queries preserve counts and a new query increments only its assignment` |
+| Skips malformed JSON records | `skips malformed JSON lines and continues counting valid queries` |
+| Runs the actual CLI and verifies its output | `CLI reads assignment logs and outputs correct counts` |
+
+The CLI integration test creates a temporary Git repository, writes sample query records, runs the actual `assignment-stats` command, and verifies stdout and the exit code.
