@@ -134,11 +134,16 @@ If no queries are recorded, it displays `No assignment queries recorded.`
 
 ### How to use
 
-From `packages/opencode`, run:
+Run the command from the Git repository containing your assignment query log. For local development, use the OpenCode CLI entry point with its absolute path.
+
+For example, after navigating to your test repository:
 
 ```bash
-bun run dev assignment-stats
+cd /path/to/your/test-repository
+bun run --conditions=browser /path/to/opencode/packages/opencode/src/index.ts assignment-stats
 ```
+
+The command reads `.opencode/assignment-queries.jsonl` from that repository's Git worktree.
 
 Example output:
 
