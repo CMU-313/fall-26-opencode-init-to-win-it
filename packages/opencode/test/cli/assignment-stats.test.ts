@@ -154,3 +154,59 @@ test("skips malformed JSON lines and continues counting valid queries", async ()
     await rm(worktree, { recursive: true, force: true })
   }
 })
+test("CLI reads assignment logs and outputs correct counts", async () => {
+  const { mkdtemp, mkdir, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+
+  const worktree = await mkdtemp(join(tmpdir(), "assignment-cli-test-"))
+
+  try {
+    const git = Bun.spawn(["git", "init"], {
+      cwd: worktree,
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+    expect(await git.exited).toBe(0)
+
+    await mkdir(join(worktree, ".opencode"), { recursive: true })
+
+    const lines = [
+      { assignment: "hw1", messageID: "message-1" },
+      { assignment: "hw1", messageID: "message-2" },
+      { assignment: "hw2", messageID: "message-3" },
+    ]
+
+    await Bun.write(
+      join(worktree, ".opencode", "assignment-queries.jsonl"),
+      lines.map((line) => JSON.stringify(line)).join("\n") + "\n",
+    )
+
+    const cli = Bun.spawn(
+      [
+        "bun",
+        "run",
+        "--conditions=browser",
+        join(import.meta.dir, "../../src/index.ts"),
+        "assignment-stats",
+      ],
+      {
+        cwd: worktree,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    )
+
+    const [exitCode, stdout, stderr] = await Promise.all([
+      cli.exited,
+      new Response(cli.stdout).text(),
+      new Response(cli.stderr).text(),
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stderr).not.toContain("error")
+    expect(stdout.trim()).toBe("hw1: 2 queries\nhw2: 1 query")
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+})
