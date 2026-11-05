@@ -351,7 +351,10 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
             Effect.gen(function* () {
               yield* add()
               const result = yield* git(
-                [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--name-only", hash, "--", "."])],
+                // --no-renames: with rename detection, deleting a file and creating one with
+                // the same contents is reported only under the new name, so the deleted
+                // file would be missing from the patch and never restored by revert.
+                [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--no-renames", "--name-only", hash, "--", "."])],
                 {
                   cwd: state.directory,
                 },
