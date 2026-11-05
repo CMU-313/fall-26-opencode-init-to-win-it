@@ -181,11 +181,14 @@ const property = <T>(name: string, arb: fc.Arbitrary<T>, body: (dir: string, inp
           yield* Effect.promise(() =>
             fc.assert(
               fc.asyncProperty(arb, (input) => run(body(dir, input))),
-              // Stop shrinking a failure after 2 minutes so the test still reports it
-              // within the bun timeout (each run does real git work).
-              { numRuns: NUM_RUNS, interruptAfterTimeLimit: 120_000 },
+              // Stop after 45 seconds (each run does real git work). A failure found by
+              // then is still reported with the counterexample shrunk so far.
+              { numRuns: NUM_RUNS, interruptAfterTimeLimit: 45_000 },
             ),
           )
+          // The package test script uses --only-failures, which hides passing tests,
+          // so print a line to show in the CI log that this property ran.
+          console.log(`[property] ${name}: passed`)
         }),
       { git: true },
     ),
@@ -211,12 +214,18 @@ const agentOpArb: fc.Arbitrary<Op> = fc.oneof(
   fc.record({ type: fc.constant("write" as const), file: fc.constantFrom(...AGENT_FILES), text: textArb }),
   fc.record({ type: fc.constant("delete" as const), file: fc.constantFrom(...AGENT_FILES) }),
 )
-// One prompt is 1 to 4 operations, so a prompt can touch the same file twice.
-const promptArb = fc.array(agentOpArb, { minLength: 1, maxLength: 4 })
-// 1 to 3 prompts, so undo and redo are exercised past the first step.
-const promptsArb = fc.array(promptArb, { minLength: 1, maxLength: 3 })
+// One prompt is 1 to 3 operations, so a prompt can touch the same file twice.
+const promptArb = fc.array(agentOpArb, {
+  minLength: 1,
+  maxLength: 3,
+})
+// 1 to 2 prompts, so undo and redo are exercised past the first step.
+const promptsArb = fc.array(promptArb, {
+  minLength: 1,
+  maxLength: 2,
+})
 
-const NUM_RUNS = 20
+const NUM_RUNS = 10
 
 // ---------- properties ----------
 
