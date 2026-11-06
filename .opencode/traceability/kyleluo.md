@@ -14,10 +14,10 @@
 
 Properties written or suggested by opencode or another AI tool: <list by requirement ID, or "none">
 
-R1 - For any message sequence, prompts, steps, and tokens are all ≥ 0
-R2 - Appending a cancelled prompt never decreases cost and never changes the prompt count.
-R3 - For any two distinct assignment names in one session, the second call fails with the exact message: “Only one assignment per summary. Complete the assignment in one session terminal or press –continue to come back to the session later.”
-R4 - For any step data with or without token fields, output contains the model name and either numbers or “unavailable.”
+R1
+R2
+R3
+R4
 
 ## Requirement changes
 
