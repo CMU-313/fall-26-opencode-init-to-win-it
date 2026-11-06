@@ -46,18 +46,22 @@ export async function readAssignmentCounts(worktree: string): Promise<Record<str
     } catch {
       continue
     }
-    
+
     if (
       typeof entry !== "object" ||
       entry === null ||
       !("assignment" in entry) ||
       !("messageID" in entry) ||
       typeof entry.assignment !== "string" ||
-      typeof entry.messageID !== "string" ||
-      seen.has(entry.messageID)
+      typeof entry.messageID !== "string"
     ) continue
 
-    seen.add(entry.messageID)
+    // Deduplicate within each assignment, not globally.
+    const key = JSON.stringify([entry.assignment, entry.messageID])
+
+    if (seen.has(key)) continue
+
+    seen.add(key)
     counts[entry.assignment] = (counts[entry.assignment] ?? 0) + 1
   }
 
