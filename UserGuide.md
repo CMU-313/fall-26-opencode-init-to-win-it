@@ -1,6 +1,6 @@
 # User Guide
 
-How to use and check the Init-to-Win-It student features. The course deliverable lives in this file at the repository root.
+How to use and check the Init-to-Win-It student features. 
 
 ## Student mode: block file writes and shell commands
 
@@ -93,6 +93,101 @@ bun test test/student/peer-performance.test.ts
 
 `peer_summary` calls `recordPerformance`, which calls `summarizeAgainstPeers`. These tests exercise that same code, so they cover the comparison the agent reports back to the student.
 
-## Other team features
 
-TA mode, the `student_mode` agent lock, `/hint`, and assignment query stats are documented by the teammates who implemented them. A short TA-mode note also lives in `.opencode/UserGuide.md`.
+### Session `/stats` owned by Kyle Luo 'dinoflask'
+
+The `/stats <assignment>` command calls the `session_stats` plugin tool and reports the assignment name, number of real user prompts, assistant step count, and total step cost. The assignment value is also saved in `.opencode/assignment.json`.
+
+Automated tests: `packages/opencode/test/student/session-stats.test.ts`.
+
+The tests use controlled session message fixtures to verify normal prompts, synthetic-only prompts, and empty sessions. These cases work without depending on a live model.
+
+Run them from `packages/opencode`:
+
+```bash
+bun test test/student/session-stats.test.ts
+```
+
+### TA mode
+
+The TA agent is defined in `.opencode/agents/TA.md`. It is a primary agent whose frontmatter denies `edit` and `bash`; its prompt requires teaching and explanation without writing solutions or revealing answer keys.
+
+Automated tests: `packages/opencode/test/student/ta-mode.test.ts`.
+
+The tests verify that the edit and shell restrictions and the non-revealing teaching contract weren't modified (possibly by a student). Because model responses are probabilistic and real users will be using different agents, a deterministic unit test cannot establish that a model will satisfy the contract for every prompt. For final verification, manually select the TA agent with `Tab` and try prompts asking it to write code, fix code, reveal an answer, or run a command; then try explanation, debugging-method, and hint requests and confirm the TA remains helpful without performing the restricted actions.
+
+Run them from `packages/opencode`:
+
+```bash
+bun test test/student/ta-mode.test.ts
+```
+
+## Assignment statistics: track queries by assignment
+
+Owned by Coral (`CoralZhu`), implemented in PR #27 and tested in PR #33.
+
+### What it does
+
+The `assignment-stats` command shows how many queries were recorded for each assignment. It reads `.opencode/assignment-queries.jsonl` from the Git worktree and counts unique message IDs to avoid counting the same query twice.
+
+If no queries are recorded, it displays `No assignment queries recorded.`
+
+### How to use
+
+Run the command from the Git repository containing your assignment query log. For local development, use the OpenCode CLI entry point with its absolute path.
+
+For example, after navigating to your test repository:
+
+```bash
+cd /path/to/your/test-repository
+bun run --conditions=browser /path/to/opencode/packages/opencode/src/index.ts assignment-stats
+```
+
+The command reads `.opencode/assignment-queries.jsonl` from that repository's Git worktree.
+
+Example output:
+
+```text
+hw1: 2 queries
+hw2: 1 query
+```
+
+### How to user-test
+
+1. Create or open a Git repository.
+2. Create `.opencode/assignment-queries.jsonl` in that repository with these records:
+
+```text
+{"assignment":"hw1","messageID":"message-1"}
+{"assignment":"hw1","messageID":"message-2"}
+{"assignment":"hw2","messageID":"message-3"}
+```
+
+3. Run the `assignment-stats` command from that Git repository using the OpenCode CLI.
+4. Verify that the output shows `hw1: 2 queries` and `hw2: 1 query`.
+5. Add a duplicate record with the same message ID and confirm the count does not increase.
+6. Add a new record with a unique message ID and verify that only the corresponding assignment's count increases.
+7. Remove or empty the log file and verify that the command displays `No assignment queries recorded.`
+
+### Automated tests
+
+File: `packages/opencode/test/cli/assignment-stats.test.ts`
+
+From `packages/opencode`:
+
+```bash
+bun test test/cli/assignment-stats.test.ts
+```
+
+| Acceptance criterion | What the test checks |
+|---|---|
+| Displays query counts by assignment | `displays query counts by assignment` |
+| Does not count duplicate messages | `records queries by assignment without counting the same message twice` |
+| Handles missing query logs | `returns empty counts when the query log does not exist` |
+| Handles empty query logs | `returns empty counts when the query log is empty` |
+| Ignores invalid records | `ignores invalid records while counting valid queries` |
+| Preserves counts for duplicates and increments for new queries | `duplicate queries preserve counts and a new query increments only its assignment` |
+| Skips malformed JSON records | `skips malformed JSON lines and continues counting valid queries` |
+| Runs the actual CLI and verifies its output | `CLI reads assignment logs and outputs correct counts` |
+
+The CLI integration test creates a temporary Git repository, writes sample query records, runs the actual `assignment-stats` command, and verifies stdout and the exit code.
