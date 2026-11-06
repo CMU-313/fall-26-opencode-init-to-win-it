@@ -22,9 +22,6 @@ R4
 ## Requirement changes
 
 | ID | Original requirement (P3) | Revised requirement | Why it changed |
-
-|R4|Model name is included for 100% of the models.
-Token count is included in the response for 90% of models.
-|Show the model name and tokens when the step data actually provides them, and show “unavailable” otherwise.|This is now a testable version of what the users wanted (seeing tokens instead of dollars, and to know the model)|
-
-|R5|Plugin works without /stats |Stats are computed and written by the event hook (on session.idle), with no model call. /stats is removed. |/stats is a tool, so it HAS to call the model. This new requirement is just elaborating on how it will change. Furthermore, there was no need for the .json — users did not mention they were going to use it even once in the interviews. Therefore, model invocation is unneeded. However, this is not implemented as it is the highest-cost fix out of the five new requirements.|
+|----|-------------|--------|-----------|
+| R4 | Model name is included for 100% of the models. Token count is included in the response for 90% of models. | Show the model name and tokens when the step data actually provides them, and show "unavailable" otherwise. | This is now a testable version of what the users wanted (seeing tokens instead of dollars, and to know the model). |
+| R5 | Plugin works without /stats. | Stats are computed and written by the event hook (on session.idle), with no model call. /stats is removed. | /stats is a tool, so it HAS to call the model. This new requirement is just elaborating on how it will change. Furthermore, there was no need for the .json, since users did not mention they were going to use it even once in the interviews. Therefore, model invocation is unneeded. However, this is not implemented as it is the highest-cost fix out of the five new requirements. |
