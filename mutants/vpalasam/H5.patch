@@ -1,0 +1,18 @@
+diff --git a/packages/opencode/src/session/revert.ts b/packages/opencode/src/session/revert.ts
+index 5a5a6ec..b72dbcc 100644
+--- a/packages/opencode/src/session/revert.ts
++++ b/packages/opencode/src/session/revert.ts
+@@ -97,12 +97,10 @@ const layer = Layer.effect(
+         const newIDs = new Set(patches.map((patch) => patch.id))
+         const previousIDs = new Set(previous.map((patch) => patch.id))
+         // Moving forward (redo): files of prompts that are no longer undone go back
+-        // to how they were when the first undo happened, then are reverted again for
+-        // any later prompt that is still undone.
++        // to how they were when the first undo happened.
+         const redone = files(previous.filter((patch) => !newIDs.has(patch.id)))
+         if (redone.size) {
+           yield* snap.revert([{ hash: session.revert.snapshot, files: [...redone] }])
+-          yield* snap.revert(patches.map((patch) => ({ ...patch, files: patch.files.filter((file) => redone.has(file)) })))
+         }
+         // Moving back (undo): revert only the prompts that were not undone before.
+         yield* snap.revert(patches.filter((patch) => !previousIDs.has(patch.id)))
