@@ -1,0 +1,16 @@
+diff --git a/packages/opencode/src/snapshot/index.ts b/packages/opencode/src/snapshot/index.ts
+index cf9812f..4da9bc3 100644
+--- a/packages/opencode/src/snapshot/index.ts
++++ b/packages/opencode/src/snapshot/index.ts
+@@ -351,10 +351,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
+             Effect.gen(function* () {
+               yield* add()
+               const result = yield* git(
+-                // --no-renames: with rename detection, deleting a file and creating one with
+-                // the same contents is reported only under the new name, so the deleted
+-                // file would be missing from the patch and never restored by revert.
+-                [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--no-renames", "--name-only", hash, "--", "."])],
++                [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--name-only", hash, "--", "."])],
+                 {
+                   cwd: state.directory,
+                 },

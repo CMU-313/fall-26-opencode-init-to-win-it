@@ -1,0 +1,27 @@
+diff --git a/packages/opencode/src/snapshot/index.ts b/packages/opencode/src/snapshot/index.ts
+index cf9812f..12c9a00 100644
+--- a/packages/opencode/src/snapshot/index.ts
++++ b/packages/opencode/src/snapshot/index.ts
+@@ -411,19 +411,17 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
+         const revert = Effect.fnUntraced(function* (patches: Patch[]) {
+           return yield* locked(
+             Effect.gen(function* () {
+-              const ops: { hash: string; file: string; rel: string }[] = []
+-              const seen = new Set<string>()
++              const byFile = new Map<string, { hash: string; file: string; rel: string }>()
+               for (const item of patches) {
+                 for (const file of item.files) {
+-                  if (seen.has(file)) continue
+-                  seen.add(file)
+-                  ops.push({
++                  byFile.set(file, {
+                     hash: item.hash,
+                     file,
+                     rel: path.relative(state.worktree, file).replaceAll("\\", "/"),
+                   })
+                 }
+               }
++              const ops = [...byFile.values()]
+ 
+               const single = Effect.fnUntraced(function* (op: (typeof ops)[number]) {
+                 yield* Effect.logInfo("reverting", { file: op.file, hash: op.hash })
