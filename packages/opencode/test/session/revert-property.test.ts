@@ -16,6 +16,9 @@ import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
+// Fixed seed so every run, including each Stryker mutant run, sees the same inputs.
+fc.configureGlobal({ seed: 42 })
+
 const it = testEffect(
   LayerNode.compile(
     LayerNode.group([Session.node, SessionRevert.node, Snapshot.node, SessionProjector.node, CrossSpawnSpawner.node]),
@@ -183,7 +186,13 @@ const property = <T>(name: string, arb: fc.Arbitrary<T>, body: (dir: string, inp
               fc.asyncProperty(arb, (input) => run(body(dir, input))),
               // Stop after 45 seconds (each run does real git work). A failure found by
               // then is still reported with the counterexample shrunk so far.
-              { numRuns: NUM_RUNS, interruptAfterTimeLimit: 45_000 },
+              // Under Stryker, skip shrinking: it only makes failures smaller and does not
+              // change whether a mutant is caught, so killed mutants finish sooner.
+              {
+                numRuns: NUM_RUNS,
+                interruptAfterTimeLimit: 45_000,
+                endOnFailure: !!process.env.__STRYKER_ACTIVE_MUTANT__,
+              },
             ),
           )
           // The package test script uses --only-failures, which hides passing tests,

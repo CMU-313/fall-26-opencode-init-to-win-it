@@ -1,0 +1,16 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test --bail test/session/revert-property.test.ts"
+  },
+  "mutate": [
+    "src/session/revert.ts:89-111",
+    "src/session/revert.ts:130-144"
+  ],
+  "coverageAnalysis": "off",
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ]
+}
