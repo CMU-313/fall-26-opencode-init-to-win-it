@@ -38,9 +38,15 @@ const ALL_FILES = [...AGENT_FILES, ...MANUAL_FILES]
 // Files the revised R1 says /undo restores: everything except gitignored files.
 const TRACKED_FILES = ALL_FILES.filter((file) => file !== ".env")
 // Non-gitignored files that a prompt's operations do not touch.
-const untouchedBy = (ops: Op[]) => TRACKED_FILES.filter((file) => !ops.some((op) => op.file === file))
+const untouchedBy = (ops: Op[]) =>
+  TRACKED_FILES.filter((file) => !ops.some((op) => op.file === file || (op.type === "move" && op.to === file)))
 
-type Op = { type: "write"; file: string; text: string } | { type: "delete"; file: string }
+type Op =
+  | { type: "write"; file: string; text: string }
+  | { type: "delete"; file: string }
+  // Moves `file` to `to` (like an agent running `mv`): reads it, deletes it, and
+  // writes the same contents to `to`. Does nothing if `file` does not exist.
+  | { type: "move"; file: string; to: string }
 type Tree = Record<string, string | null> // file -> sha256, or null if absent
 type Services = Session.Service | SessionRevert.Service | Snapshot.Service
 
@@ -54,8 +60,14 @@ const writeFile = (dir: string, file: string, text: string) =>
 
 const removeFile = (dir: string, file: string) => Effect.promise(() => fs.rm(path.join(dir, file), { force: true }))
 
-const applyOp = (dir: string, op: Op) =>
-  op.type === "write" ? writeFile(dir, op.file, op.text) : removeFile(dir, op.file)
+const applyOp = Effect.fn("test.applyOp")(function* (dir: string, op: Op) {
+  if (op.type === "write") return yield* writeFile(dir, op.file, op.text)
+  if (op.type === "delete") return yield* removeFile(dir, op.file)
+  const text = yield* Effect.promise(() => fs.readFile(path.join(dir, op.file), "utf-8").catch(() => null))
+  if (text === null) return
+  yield* removeFile(dir, op.file)
+  yield* writeFile(dir, op.to, text)
+})
 
 // Clears the pool, gitignores .env, and writes the given initial contents.
 const resetDir = Effect.fn("test.resetDir")(function* (dir: string, initial: Record<string, string>) {
@@ -76,7 +88,11 @@ const hashTree = (dir: string, files: string[]) =>
 
 // Simulates one prompt: a user message, then an assistant message whose
 // step-start/step-finish/patch parts record the given file operations, the
-// same way session/processor.ts records a real agent step.
+// same way session/processor.ts records agent steps. A real agent often takes
+// several steps per prompt, each with its own snapshot and patch, so a prompt
+// with 2 or more operations is split into two steps (first half, second half).
+// That way one undo can revert two patches that touch the same file
+// (hand-written mutant H3).
 const turn = Effect.fn("test.turn")(function* (sessionID: SessionID, dir: string, ops: Op[]) {
   const session = yield* Session.Service
   const snapshot = yield* Snapshot.Service
@@ -106,33 +122,37 @@ const turn = Effect.fn("test.turn")(function* (sessionID: SessionID, dir: string
     finish: "end_turn",
   })
 
-  const before = yield* snapshot.track()
-  if (!before) throw new Error("expected snapshot")
-  for (const op of ops) yield* applyOp(dir, op)
-  const after = yield* snapshot.track()
-  if (!after) throw new Error("expected snapshot")
-  const patch = yield* snapshot.patch(before)
+  const half = Math.ceil(ops.length / 2)
+  const steps = ops.length >= 2 ? [ops.slice(0, half), ops.slice(half)] : [ops]
+  for (const step of steps) {
+    const before = yield* snapshot.track()
+    if (!before) throw new Error("expected snapshot")
+    for (const op of step) yield* applyOp(dir, op)
+    const after = yield* snapshot.track()
+    if (!after) throw new Error("expected snapshot")
+    const patch = yield* snapshot.patch(before)
 
-  yield* session.updatePart({ id: PartID.ascending(), messageID: a.id, sessionID, type: "step-start", snapshot: before })
-  yield* session.updatePart({
-    id: PartID.ascending(),
-    messageID: a.id,
-    sessionID,
-    type: "step-finish",
-    reason: "stop",
-    snapshot: after,
-    cost: 0,
-    tokens,
-  })
-  if (patch.files.length) {
+    yield* session.updatePart({ id: PartID.ascending(), messageID: a.id, sessionID, type: "step-start", snapshot: before })
     yield* session.updatePart({
       id: PartID.ascending(),
       messageID: a.id,
       sessionID,
-      type: "patch",
-      hash: patch.hash,
-      files: patch.files,
+      type: "step-finish",
+      reason: "stop",
+      snapshot: after,
+      cost: 0,
+      tokens,
     })
+    if (patch.files.length) {
+      yield* session.updatePart({
+        id: PartID.ascending(),
+        messageID: a.id,
+        sessionID,
+        type: "patch",
+        hash: patch.hash,
+        files: patch.files,
+      })
+    }
   }
   return u.id
 })
@@ -219,9 +239,17 @@ const textArb = fc.oneof(
 // cover both editing existing files and creating new ones, and deletes cover
 // both existing and missing files.
 const initialArb = fc.dictionary(fc.constantFrom(...ALL_FILES), textArb)
+// Moves cover an agent renaming a file. When the destination is new, git sees a
+// deleted file and an added file with identical contents, which is the case
+// rename detection can hide from the undo patch (hand-written mutant H1).
 const agentOpArb: fc.Arbitrary<Op> = fc.oneof(
   fc.record({ type: fc.constant("write" as const), file: fc.constantFrom(...AGENT_FILES), text: textArb }),
   fc.record({ type: fc.constant("delete" as const), file: fc.constantFrom(...AGENT_FILES) }),
+  fc.record({
+    type: fc.constant("move" as const),
+    file: fc.constantFrom(...AGENT_FILES),
+    to: fc.constantFrom(...AGENT_FILES),
+  }),
 )
 // One prompt is 1 to 3 operations, so a prompt can touch the same file twice.
 const promptArb = fc.array(agentOpArb, {
@@ -265,26 +293,50 @@ describe("session undo/redo properties", () => {
   // file to its exact post-prompt state.
   // Kind: round-trip
   // Generalized from one prompt to 1-3 prompts: undo k times (k from 1 to the
-  // number of prompts), then redo k times, and compare with the state after
-  // the last prompt.
+  // number of prompts), then redo k times. Each redo moves forward one prompt,
+  // so after every redo step the non-gitignored files must match the state
+  // right after the corresponding prompt (hand-written mutant H5), and after the
+  // last redo every file must match the post-prompt state. Before any undo, a
+  // redo has nothing to restore and must leave every file unchanged (Stryker
+  // survivor at revert.ts:134). That call goes to the service directly, since
+  // the TUI hides /redo when nothing is undone.
   property(
     "R2: undo then redo returns every file to the post-prompt state",
-    promptsArb.chain((prompts) =>
+    // Generator: 1-3 prompts, and the number of undo/redo steps is usually all of
+    // them, so most cases redo through at least one intermediate prompt. A redo
+    // step in the middle only goes wrong when a later, still-undone prompt shares
+    // a file with the prompt being redone, which needs several prompts.
+    fc.array(promptArb, { minLength: 1, maxLength: 3 }).chain((prompts) =>
       fc.record({
         initial: initialArb,
         prompts: fc.constant(prompts),
-        steps: fc.integer({ min: 1, max: prompts.length }),
+        steps: fc.oneof(
+          { arbitrary: fc.constant(prompts.length), weight: 3 },
+          { arbitrary: fc.integer({ min: 1, max: prompts.length }), weight: 1 },
+        ),
       }),
     ),
     (dir, { initial, prompts, steps }) =>
       Effect.gen(function* () {
+        const revert = yield* SessionRevert.Service
         yield* resetDir(dir, initial)
         const sid = yield* newSession()
-        for (const ops of prompts) yield* turn(sid, dir, ops)
+        // states[j] = non-gitignored files after prompt j (states[0] is before any prompt).
+        const states = [yield* hashTree(dir, TRACKED_FILES)]
+        for (const ops of prompts) {
+          yield* turn(sid, dir, ops)
+          states.push(yield* hashTree(dir, TRACKED_FILES))
+        }
         const after = yield* hashTree(dir, ALL_FILES)
 
+        yield* revert.unrevert({ sessionID: sid })
+        expect(yield* hashTree(dir, ALL_FILES)).toEqual(after)
+
         for (let i = 0; i < steps; i++) yield* undo(sid)
-        for (let i = 0; i < steps; i++) yield* redo(sid)
+        for (let i = 1; i <= steps; i++) {
+          yield* redo(sid)
+          expect(yield* hashTree(dir, TRACKED_FILES)).toEqual(states[prompts.length - steps + i])
+        }
         expect(yield* hashTree(dir, ALL_FILES)).toEqual(after)
       }),
   )
