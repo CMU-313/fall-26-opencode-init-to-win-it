@@ -27,6 +27,37 @@ Patches are in `mutants/vpalasam/`. Each mutant was run twice against `packages/
 | H4 | R4 | `session/revert.ts`: on a repeated /undo, revert all patches after the new revert point instead of only the newly undone prompt's patches, so the already-undone prompt is reverted again | R4, possibly not every run | Killed by R4 in 1 of 2 runs. The bug only shows with two prompts when the user manually edits a file that only the later, already-undone prompt changed, between the two undos. Counterexample: prompt 2 creates `README.md`; after the first /undo the user creates `README.md` by hand; the second /undo deletes it |
 | H5 | R2 | `session/revert.ts`: removed the line in the redo branch that re-reverts prompts that are still undone, so one /redo also brings back later prompts' changes to shared files | None (predicted to survive) | Survived (2 of 2 runs): R2 only compares files after the final redo, and the final redo (`unrevert`) gives the correct result even with H5. Confirmed as a real bug by hand: `calc.py` a0, then prompts writing a1 and a2, then undo, undo, redo leaves `a2` instead of `a1` |
 
+## Stryker comparison
+
+**Setup.** Config: `packages/opencode/stryker.vpalasam.config.json`. Stryker uses the command runner with `bun test --bail test/session/revert-property.test.ts`, so only my property file runs. The fast-check seed is fixed at **42** (`fc.configureGlobal({ seed: 42 })` in the test file), with 10 runs per property. While Stryker is running, fast-check skips shrinking (`endOnFailure`), which does not change whether a mutant is caught.
+
+**Scope.** `src/session/revert.ts:89-111` and `src/session/revert.ts:130-144`, the undo/redo file-restore logic that all four properties go through. I kept the scope narrow so a run takes about 2 minutes. Not mutated: the revert-point selection at the top of `revert`, `patchesAfter`, and `Snapshot.patch` in `src/snapshot/index.ts`, which R1 and R5 also depend on. The score below covers the restore logic only.
+
+**Result.** 44 mutants: 30 killed, 11 timed out, 3 survived. **Mutation score: 93.18%** (Stryker counts timed-out mutants as detected). The run took 2 minutes 13 seconds with 9 test runner processes. Report: `mutants/vpalasam/mutation.html`.
+
+| Stryker survivor | Mutation | Why it survived |
+|---|---|---|
+| `revert.ts:134` | `if (!session.revert) return session` became `if (false) return session` | No property calls redo when nothing has been undone, because the redo helper (like `/redo` in the TUI) stops early in that case. With the mutant, `unrevert` with nothing undone crashes on `session.revert.snapshot` instead of returning the session. |
+| `revert.ts:138` | `if (session.revert.snapshot)` became `if (true)` | Every property runs in a git project, where the undo snapshot always exists, so the condition is always true anyway. It only matters for a session without a snapshot, which R1 excludes. |
+| `revert.ts:140` | `if (changed.size)` became `if (true)` | When no files changed, `snap.revert` is called with an empty list and does nothing, so the two versions behave the same. |
+
+**Which of my hand-written mutants did Stryker never generate? Why not?**
+
+- **H1, H2, and H3** are in `src/snapshot/index.ts`, which is outside the Stryker scope, so Stryker could not generate them. Even in scope, it would not produce H1 or H3. H1 deletes one element (`--no-renames`) from an argument list; Stryker can empty a whole array or a string, but it does not remove a single element. H3 rewrites a de-duplication loop into a `Map`, which is a refactor that changes which patch wins, not a small syntax change.
+- **H5** deletes one statement inside the redo branch. Stryker has no "delete this statement" mutation. The closest it generated was `BlockStatement` on line 103, which empties the whole `if (redone.size) { ... }` block (both lines), and that mutant was detected (killed or timed out).
+- **H4 was generated.** Stryker's `MethodExpression` mutation on line 108 turned `patches.filter((patch) => !previousIDs.has(patch.id))` into `patches`, which is exactly H4, and it was detected (killed or timed out). With seed 42 the generator reaches a failing case, while with random seeds H4 was only killed in 1 of 2 runs.
+
+**Which Stryker survivors would I never have thought of? Are any of them bugs a real developer might plausibly write?**
+
+- **Line 134 (redo with nothing undone).** I never thought about calling redo when nothing is undone, because the TUI disables `/redo` in that state. A developer could plausibly drop this guard, for example while refactoring `unrevert` under the assumption that it is only called after an undo. The API endpoint can still be called directly, so the crash would be real.
+- **Line 138 (session without a snapshot).** I did not think about it because my requirements only cover git projects. Removing the check is a plausible mistake from a developer who assumes a snapshot always exists, since it does in every git project. It would break redo outside git projects or with snapshots turned off.
+- **Line 140 (empty changed-file set).** Removing this check is not a real bug: it only skips a call that would do nothing. A developer could easily delete it, and nothing would go wrong.
+
+**What does each approach find that the other doesn't?**
+
+- **Hand-written mutants** find bugs that depend on what the code means and on a specific sequence of actions: undo, a manual edit, then a second undo (H4), or the state after one redo step out of several (H5). They can also target code Stryker does not mutate well, such as git command-line flags (H1) or a whole loop's logic (H3), and the interview evidence tells me which behaviors matter.
+- **Stryker** checks every condition and guard mechanically, so it finds the cases I never considered: redo with nothing undone and sessions without a snapshot. It does this without me having to imagine the bug, and it showed that my properties were strong for the restore logic (93%) while highlighting the inputs my generators never produce.
+
 ## Requirement changes
 
 | ID | Original requirement (P3) | Revised requirement | Why it changed |
