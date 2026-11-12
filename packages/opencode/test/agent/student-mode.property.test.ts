@@ -4,6 +4,9 @@ import type { ConfigPermissionV1 } from "@opencode-ai/core/v1/config/permission"
 import { Permission } from "../../src/permission"
 import { StudentMode } from "../../src/agent/student-mode"
 
+// Fixed seed so Stryker and hand-written mutant runs are reproducible.
+fc.configureGlobal({ seed: 42 })
+
 /**
  * Generators aim at the boundaries interviewees cared about:
  * - assignment-like paths and odd write targets (append/truncate-style names)
@@ -72,6 +75,34 @@ describe("StudentMode properties", () => {
         })
         expect(againstTruthyEnv).toBe(flag)
         expect(againstFalseyEnv).toBe(flag)
+      }),
+      assertOpts,
+    )
+  })
+
+  // R1 (env fallback): when config does not set a boolean, OPENCODE_STUDENT_MODE decides.
+  // Strengthened after Stryker showed the env branch was uncovered.
+  test("R1: without config boolean, OPENCODE_STUDENT_MODE decides", () => {
+    fc.assert(
+      fc.property(truthyEnvArb, falseyEnvArb, (truthy, falsey) => {
+        expect(StudentMode.enabled({ env: { OPENCODE_STUDENT_MODE: truthy } })).toBe(true)
+        expect(StudentMode.enabled({ env: { OPENCODE_STUDENT_MODE: falsey } })).toBe(false)
+        expect(
+          StudentMode.enabled({
+            config: {},
+            env: { OPENCODE_STUDENT_MODE: truthy },
+          }),
+        ).toBe(true)
+        expect(
+          StudentMode.enabled({
+            config: {},
+            env: { OPENCODE_STUDENT_MODE: falsey },
+          }),
+        ).toBe(false)
+        // Empty env object: missing key must not throw and must read as off.
+        expect(StudentMode.enabled({ env: {} })).toBe(false)
+        // No env override: fall through to Flag without touching input.env.
+        expect(typeof StudentMode.enabled({ config: {} })).toBe("boolean")
       }),
       assertOpts,
     )

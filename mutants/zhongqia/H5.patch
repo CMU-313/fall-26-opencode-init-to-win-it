@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/agent/student-mode.ts b/packages/opencode/src/agent/student-mode.ts
+index 6b04785..6c56954 100644
+--- a/packages/opencode/src/agent/student-mode.ts
++++ b/packages/opencode/src/agent/student-mode.ts
+@@ -28,7 +28,7 @@ export function ruleset(): PermissionV1.Ruleset {
+  * Later rules win in `Permission.evaluate` (`findLast`), so these denies stick.
+  */
+ export function apply(base: PermissionV1.Ruleset, studentMode: boolean): PermissionV1.Ruleset {
+-  if (!studentMode) return base
++  void studentMode
+   return Permission.merge(base, ruleset())
+ }
+ 
