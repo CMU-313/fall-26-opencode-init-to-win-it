@@ -1,3 +1,4 @@
+import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
 
 // Single source of truth for the assignment name, shared by every plugin in this repo.
@@ -17,6 +18,7 @@ export async function readAssignment(worktree: string) {
 
 export async function writeAssignment(worktree: string, assignment: string) {
   const file = assignmentPath(worktree)
+  await mkdir(join(worktree, ".opencode"), { recursive: true })
   await Bun.write(file, JSON.stringify({ assignment }, null, 2) + "\n")
   return file
 }
@@ -27,6 +29,7 @@ export function queryLogPath(worktree: string) {
 
 export async function recordAssignmentQuery(worktree: string, assignment: string, messageID: string) {
   const { appendFile } = await import("node:fs/promises")
+  await mkdir(join(worktree, ".opencode"), { recursive: true })
   await appendFile(queryLogPath(worktree), JSON.stringify({ assignment, messageID }) + "\n")
 }
 
