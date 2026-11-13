@@ -187,3 +187,11 @@ Predictions were recorded before running the mutants.
 | H3 | R4 | Keep only the first record for each assignment | R4 may survive; R5 may kill it | Killed by R3, R4, and R5. R4 found a counterexample with two records belonging to hw1 and hw2. The mutant processed only the first record, so reversing the records changed the result from `{ hw1: 1 }` to `{ hw2: 1 }`. R2 passed.|
 | H4 | R5 | Skip the first valid log record | R5 should detect incorrect counts | Killed by R4 and R5. R4 found that skipping the first log record caused different counts after reversing the record order. R5 detected that the initial count for Assignment A was missing. R2 and R3 passed. |
 | H5 | R3 | Normalize message IDs to lowercase before deduplication | May survive because R3 generates only lowercase IDs | Survived all four properties. The mutant converts message IDs to lowercase before deduplication, but the existing generators only produce lowercase alphanumeric IDs. Therefore, the tests do not detect case-insensitive collisions. |
+
+## Hand-Written vs. Stryker Mutants
+
+The hand-written mutants were designed around specific requirements and expected failure scenarios. For example, H1 recreated the cross-assignment deduplication bug discovered in Project 4, while H5 exposed a gap in testing case-sensitive message IDs.
+
+Stryker automatically generated 43 mutants by modifying conditions and statements in readAssignmentCounts(). It revealed a missing-file handling gap that I had not explicitly targeted with my hand-written mutants.
+
+The two approaches were complementary: hand-written mutants helped evaluate requirement-specific behavior, while Stryker provided broader automated coverage of the implementation.

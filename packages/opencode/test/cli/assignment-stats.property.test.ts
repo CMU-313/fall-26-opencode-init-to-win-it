@@ -7,6 +7,7 @@ import {
   recordAssignmentQuery,
   readAssignmentCounts,
 } from "../../../../.opencode/assignment"
+fc.configureGlobal({ seed: 20261112 })
 
 // R3: The system must count each unique message ID at most once per assignment.
 // Kind: Model / oracle
@@ -63,7 +64,8 @@ test("R2: invalid records never create positive counts", async () => {
 
         try {
           await mkdir(join(worktree, ".opencode"))
-
+          // R2: A missing query log must produce no counts.
+          expect(await readAssignmentCounts(worktree)).toEqual({})
           const { queryLogPath } =
             await import("../../../../.opencode/assignment")
 
