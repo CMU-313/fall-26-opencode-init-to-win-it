@@ -1,15 +1,13 @@
 diff --git a/.opencode/plugin/session-stats.ts b/.opencode/plugin/session-stats.ts
-index cb343aa..88d0cc1 100644
+index cb343aa..e050185 100644
 --- a/.opencode/plugin/session-stats.ts
 +++ b/.opencode/plugin/session-stats.ts
-@@ -5,7 +5,9 @@ export const ASSIGNMENT_CONFLICT_MESSAGE =
-   "Only one assignment per summary. Complete the assignment in one session terminal or press –continue to come back to the session later."
- 
- export function assignmentConflict(existing: string | undefined, requested: string) {
--  return existing !== undefined && existing !== requested ? ASSIGNMENT_CONFLICT_MESSAGE : undefined
-+  return existing !== undefined && existing.trim().toLowerCase() !== requested.trim().toLowerCase()
-+    ? ASSIGNMENT_CONFLICT_MESSAGE
-+    : undefined
+@@ -82,7 +82,7 @@ export function computeStats(messages: SessionMessage[]) {
+     cacheReadTokens: tokens.cacheRead,
+     cacheWriteTokens: tokens.cacheWrite,
+     models: assistantModels,
+-    hasTokens: tokenParts.length > 0,
++    hasTokens: steps.length > 0,
+   }
  }
  
- export type SessionMessage = {
