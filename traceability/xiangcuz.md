@@ -204,4 +204,14 @@ I tested the suggested property against H5, a hand-written mutant that converts 
 
 Then I added a property that generates lowercase letters and their uppercase counterparts under the same assignment. With H5 applied, the new property failed with counterexample "a": it expected { hw1: 2 } but received { hw1: 1 }. After restoring the correct implementation, all 6 properties passed. This shows that an AI-suggested test can cover multiple inputs and still miss important edge cases because of restrictive generator assumptions.
 
-Evidence: opencode recommendation screenshot; H5 patch; before-and-after test results.
+### 8.Red Team Defense
+
+Rita Xiao submitted three cross-team mutants targeting assignment-stats.
+
+A1 (R2): Accepts null as a valid message ID. The original R2 generator may miss a record with a valid assignment and a null message ID.
+
+A2 (R3): Tracks only the last message ID per assignment instead of all previously seen IDs. This can cause non-consecutive duplicate queries to be counted multiple times.
+
+A3 (R4): Stops counting after 1,000 unique assignment-message pairs. The R4 generator uses shorter logs and does not exercise this boundary.
+
+These mutants expose potential gaps in input generation and boundary coverage. Their actual killed/survived status still needs to be verified by running the property tests against each mutant.
