@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "cd packages/opencode && NODE_PATH=\"$PWD/../../../../packages/opencode/node_modules\" bun test test/student/session-stats.property.test.ts"
+  },
+  "mutate": [".opencode/plugin/session-stats.ts"],
+  "ignorePatterns": ["packages/console"],
+  "htmlReporter": {
+    "fileName": "packages/opencode/reports/mutation/mutation.html"
+  },
+  "coverageAnalysis": "off",
+  "reporters": ["html", "clear-text", "progress"]
+}
