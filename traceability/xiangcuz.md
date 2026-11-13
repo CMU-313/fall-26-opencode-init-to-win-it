@@ -188,10 +188,20 @@ Predictions were recorded before running the mutants.
 | H4 | R5 | Skip the first valid log record | R5 should detect incorrect counts | Killed by R4 and R5. R4 found that skipping the first log record caused different counts after reversing the record order. R5 detected that the initial count for Assignment A was missing. R2 and R3 passed. |
 | H5 | R3 | Normalize message IDs to lowercase before deduplication | May survive because R3 generates only lowercase IDs | Survived all four properties. The mutant converts message IDs to lowercase before deduplication, but the existing generators only produce lowercase alphanumeric IDs. Therefore, the tests do not detect case-insensitive collisions. |
 
-## Hand-Written vs. Stryker Mutants
+## 6. Hand-Written vs. Stryker Mutants
 
-The hand-written mutants were designed around specific requirements and expected failure scenarios. For example, H1 recreated the cross-assignment deduplication bug discovered in Project 4, while H5 exposed a gap in testing case-sensitive message IDs.
-
-Stryker automatically generated 43 mutants by modifying conditions and statements in readAssignmentCounts(). It revealed a missing-file handling gap that I had not explicitly targeted with my hand-written mutants.
+The hand-written mutants were designed around specific requirements and expected failure scenarios. While stryker automatically generated 43 mutants by modifying conditions and statements in readAssignmentCounts(). It revealed a missing-file handling gap that I had not explicitly targeted with my hand-written mutants.
 
 The two approaches were complementary: hand-written mutants helped evaluate requirement-specific behavior, while Stryker provided broader automated coverage of the implementation.
+
+## 7. Agent Failure Case (R3 Case-Sensitive Message IDs)
+
+I asked opencode to review my R3 property and suggest a stronger property-based test. The agent proposed generating multiple unique message IDs for three assignments and recording each ID twice to verify deduplication.
+
+However, it used fc.stringMatching(/^[a-z0-9]{1,12}$/), which only generates lowercase alphanumeric IDs. This meant the agent-suggested property could not detect incorrect case-insensitive deduplication.
+
+I tested the suggested property against H5, a hand-written mutant that converts message IDs to lowercase before deduplication. All five properties passed, so H5 survived.
+
+Then I added a property that generates lowercase letters and their uppercase counterparts under the same assignment. With H5 applied, the new property failed with counterexample "a": it expected { hw1: 2 } but received { hw1: 1 }. After restoring the correct implementation, all 6 properties passed. This shows that an AI-suggested test can cover multiple inputs and still miss important edge cases because of restrictive generator assumptions.
+
+Evidence: opencode recommendation screenshot; H5 patch; before-and-after test results.

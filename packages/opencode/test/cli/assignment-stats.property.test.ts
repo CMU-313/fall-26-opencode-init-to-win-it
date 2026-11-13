@@ -194,3 +194,65 @@ test("R5: moving a query updates assignment counts", async () => {
     { numRuns: 30 },
   )
 })
+
+test("R3: each assignment counts unique message IDs once", async () => {
+  const idArb = fc.stringMatching(/^[a-z0-9]{1,12}$/)
+
+  const assignmentIDsArb = fc.record({
+    hw1: fc.uniqueArray(idArb, { minLength: 1, maxLength: 10 }),
+    hw2: fc.uniqueArray(idArb, { minLength: 1, maxLength: 10 }),
+    hw3: fc.uniqueArray(idArb, { minLength: 1, maxLength: 10 }),
+  })
+
+  await fc.assert(
+    fc.asyncProperty(assignmentIDsArb, async (assignmentIDs) => {
+      const worktree = await mkdtemp(join(tmpdir(), "assignment-r3-"))
+
+      try {
+        await mkdir(join(worktree, ".opencode"))
+
+        for (const [assignment, ids] of Object.entries(assignmentIDs)) {
+          for (const messageID of ids) {
+            await recordAssignmentQuery(worktree, assignment, messageID)
+            await recordAssignmentQuery(worktree, assignment, messageID)
+          }
+        }
+
+        expect(await readAssignmentCounts(worktree)).toEqual({
+          hw1: assignmentIDs.hw1.length,
+          hw2: assignmentIDs.hw2.length,
+          hw3: assignmentIDs.hw3.length,
+        })
+      } finally {
+        await rm(worktree, { recursive: true, force: true })
+      }
+    }),
+    { numRuns: 30 },
+  )
+})
+
+test("R3: message IDs are case-sensitive within an assignment", async () => {
+  const letterArb = fc.constantFrom(
+    ..."abcdefghijklmnopqrstuvwxyz",
+  )
+
+  await fc.assert(
+    fc.asyncProperty(letterArb, async (letter) => {
+      const worktree = await mkdtemp(join(tmpdir(), "assignment-r3-case-"))
+
+      try {
+        await mkdir(join(worktree, ".opencode"))
+
+        await recordAssignmentQuery(worktree, "hw1", letter)
+        await recordAssignmentQuery(worktree, "hw1", letter.toUpperCase())
+
+        expect(await readAssignmentCounts(worktree)).toEqual({
+          hw1: 2,
+        })
+      } finally {
+        await rm(worktree, { recursive: true, force: true })
+      }
+    }),
+    { numRuns: 30 },
+  )
+})
