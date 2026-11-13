@@ -1,0 +1,12 @@
+diff --git a/packages/opencode/src/agent/student-mode.ts b/packages/opencode/src/agent/student-mode.ts
+index 6b04785..c7db7ef 100644
+--- a/packages/opencode/src/agent/student-mode.ts
++++ b/packages/opencode/src/agent/student-mode.ts
+@@ -14,7 +14,6 @@ import { Permission } from "@/permission"
+  *   (replace / extend `enabled()` — do not invent a second competing API)
+  */
+ export const RULESET_CONFIG = {
+-  edit: "deny",
+   bash: "deny",
+ } as const
+ 

@@ -58,7 +58,9 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        timeout-minutes: 20
+        # opencode's suite alone can exceed 10m on ubuntu-latest; main has
+        # been timing out here since the suite grew past the old budget.
+        timeout-minutes: 25
         # Default turbo concurrency (10) oversubscribes ubuntu-latest's 4
         # vCPUs across 5 packages' test tasks running at once — same
         # contention issue typecheck.yml already caps for tsgo.

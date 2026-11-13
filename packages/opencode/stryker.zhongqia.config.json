@@ -1,0 +1,13 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test --bail test/agent/student-mode.property.test.ts"
+  },
+  "mutate": [
+    "src/agent/student-mode.ts:16-19",
+    "src/agent/student-mode.ts:30-33",
+    "src/agent/student-mode.ts:49-58"
+  ],
+  "coverageAnalysis": "off",
+  "reporters": ["html", "clear-text", "progress"]
+}
