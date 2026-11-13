@@ -1,0 +1,15 @@
+diff --git a/packages/opencode/src/agent/student-mode.ts b/packages/opencode/src/agent/student-mode.ts
+index 6b04785..287774d 100644
+--- a/packages/opencode/src/agent/student-mode.ts
++++ b/packages/opencode/src/agent/student-mode.ts
+@@ -47,8 +47,8 @@ export type EnabledInput = {
+  * Priority: explicit `config.student_mode` if boolean, else `OPENCODE_STUDENT_MODE`.
+  */
+ export function enabled(input: EnabledInput = {}): boolean {
+-  if (typeof input.config?.student_mode === "boolean") {
+-    return input.config.student_mode
++  if (input.config?.student_mode === true) {
++    return true
+   }
+   if (input.env) {
+     const value = input.env["OPENCODE_STUDENT_MODE"]?.toLowerCase()

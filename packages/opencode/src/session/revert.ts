@@ -35,6 +35,27 @@ const layer = Layer.effect(
     const summary = yield* SessionSummary.Service
     const state = yield* SessionRunState.Service
 
+    type PatchPart = Snapshot.Patch & { id: PartID }
+
+    // Patch parts recorded after a revert point, in message order.
+    const patchesAfter = (all: SessionV1.WithParts[], point: { messageID: MessageID; partID?: PartID }) => {
+      const result: PatchPart[] = []
+      let found = false
+      for (const msg of all) {
+        if (!found && !point.partID && msg.info.id === point.messageID) found = true
+        for (const part of msg.parts) {
+          if (found) {
+            if (part.type === "patch") result.push(part)
+            continue
+          }
+          if (point.partID && part.id === point.partID) found = true
+        }
+      }
+      return result
+    }
+
+    const files = (patches: Snapshot.Patch[]) => new Set(patches.flatMap((patch) => patch.files))
+
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
       yield* state.assertNotBusy(input.sessionID)
       const all = yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)
@@ -42,7 +63,7 @@ const layer = Layer.effect(
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
 
       let rev: Session.Info["revert"]
-      const patches: Snapshot.Patch[] = []
+      const patches: PatchPart[] = []
       for (const msg of all) {
         if (msg.info.role === "user") lastUser = msg.info
         const remaining = []
@@ -68,8 +89,26 @@ const layer = Layer.effect(
       if (!rev) return session
 
       rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
-      if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
-      yield* snap.revert(patches)
+      if (session.revert?.snapshot) {
+        // The session is already reverted. Only touch files changed by the prompts
+        // whose undone state differs between the old and new revert points, so manual
+        // edits to other files are kept.
+        const previous = patchesAfter(all, session.revert)
+        const newIDs = new Set(patches.map((patch) => patch.id))
+        const previousIDs = new Set(previous.map((patch) => patch.id))
+        // Moving forward (redo): files of prompts that are no longer undone go back
+        // to how they were when the first undo happened, then are reverted again for
+        // any later prompt that is still undone.
+        const redone = files(previous.filter((patch) => !newIDs.has(patch.id)))
+        if (redone.size) {
+          yield* snap.revert([{ hash: session.revert.snapshot, files: [...redone] }])
+          yield* snap.revert(patches.map((patch) => ({ ...patch, files: patch.files.filter((file) => redone.has(file)) })))
+        }
+        // Moving back (undo): revert only the prompts that were not undone before.
+        yield* snap.revert(patches.filter((patch) => !previousIDs.has(patch.id)))
+      } else {
+        yield* snap.revert(patches)
+      }
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
       const index = all.findIndex((msg) => msg.info.id === rev.messageID)
       const range = index < 0 ? [] : all.slice(index)
@@ -93,7 +132,13 @@ const layer = Layer.effect(
       yield* state.assertNotBusy(input.sessionID)
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       if (!session.revert) return session
-      if (session.revert.snapshot) yield* snap.restore(session.revert.snapshot)
+      const all = yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)
+      // Put back only the files the undone prompts changed (deleting any that did
+      // not exist when the first undo happened), so manual edits to other files are kept.
+      if (session.revert.snapshot) {
+        const changed = files(patchesAfter(all, session.revert))
+        if (changed.size) yield* snap.revert([{ hash: session.revert.snapshot, files: [...changed] }])
+      }
       yield* sessions.clearRevert(input.sessionID)
       return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
     })

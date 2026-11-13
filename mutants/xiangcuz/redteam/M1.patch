@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/snapshot/index.ts b/packages/opencode/src/snapshot/index.ts
+index 4da9bc3..cf48613 100644
+--- a/packages/opencode/src/snapshot/index.ts
++++ b/packages/opencode/src/snapshot/index.ts
+@@ -417,7 +417,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
+                   ops.push({
+                     hash: item.hash,
+                     file,
+-                    rel: path.relative(state.worktree, file).replaceAll("\\", "/"),
++                    rel: path.basename(file),
+                   })
+                 }
+               }
