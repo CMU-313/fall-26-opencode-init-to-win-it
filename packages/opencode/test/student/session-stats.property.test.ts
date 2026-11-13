@@ -7,6 +7,8 @@ import {
   type SessionMessage,
 } from "../../../../.opencode/plugin/session-stats"
 
+fc.configureGlobal({ seed: 42 })
+
 // Bad value generator for numbers
 const numericValue = fc.oneof(
   fc.nat(),
