@@ -1,0 +1,13 @@
+diff --git a/.opencode/assignment.ts b/.opencode/assignment.ts
+index 30c8c96..4781a10 100644
+--- a/.opencode/assignment.ts
++++ b/.opencode/assignment.ts
+@@ -60,7 +60,7 @@ export async function readAssignmentCounts(worktree: string): Promise<Record<str
+     ) continue
+ 
+     // Deduplicate within each assignment, not globally.
+-    const key = JSON.stringify([entry.assignment, entry.messageID])
++    const key = entry.messageID
+ 
+     if (seen.has(key)) continue
+ 

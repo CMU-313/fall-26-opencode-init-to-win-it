@@ -175,3 +175,15 @@ All three properties passed after running the updated implementation. No additio
 These results confirm that the tested behaviors pass locally and that the R3 fix did not break the existing unit tests.
 
 GitHub Actions verification is recorded separately in the PR.
+
+## 5. Hand-written Mutants
+
+Predictions were recorded before running the mutants.
+
+| ID | Requirement | Change | Predicted Killer | Actual Result |
+|---|---|---|---|---|
+| H1 | R3 | Deduplicate globally using messageID only | R3: cross-assignment IDs should be counted separately | Killed by R3. R3 failed with counterexample `messageID = "a"`. Expected `{ hw1: 1, hw2: 1 }`, but received `{ hw1: 1 }`. R2, R4, and R5 passed. |
+| H2 | R2 | Accept some invalid records by weakening validation | R2: invalid records must not create positive counts | Killed by R2. fast-check found a counterexample containing `{"assignment":"hw1","messageID":123}`. Expected `{}`, but received `{ hw1: 1 }`. R3, R4, and R5 passed. |
+| H3 | R4 | Keep only the first record for each assignment | R4 may survive; R5 may kill it | Killed by R3, R4, and R5. R4 found a counterexample with two records belonging to hw1 and hw2. The mutant processed only the first record, so reversing the records changed the result from `{ hw1: 1 }` to `{ hw2: 1 }`. R2 passed.|
+| H4 | R5 | Skip the first valid log record | R5 should detect incorrect counts | Killed by R4 and R5. R4 found that skipping the first log record caused different counts after reversing the record order. R5 detected that the initial count for Assignment A was missing. R2 and R3 passed. |
+| H5 | R3 | Normalize message IDs to lowercase before deduplication | May survive because R3 generates only lowercase IDs | Survived all four properties. The mutant converts message IDs to lowercase before deduplication, but the existing generators only produce lowercase alphanumeric IDs. Therefore, the tests do not detect case-insensitive collisions. |
