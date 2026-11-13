@@ -1,0 +1,13 @@
+diff --git a/.opencode/plugin/session-stats.ts b/.opencode/plugin/session-stats.ts
+index cb343aa..4927247 100644
+--- a/.opencode/plugin/session-stats.ts
++++ b/.opencode/plugin/session-stats.ts
+@@ -75,7 +75,7 @@ export function computeStats(messages: SessionMessage[]) {
+   return {
+     prompts,
+     steps: steps.length,
+-    cost: steps.reduce((total, part) => total + finiteNonNegative(part.cost), 0),
++    cost: steps.reduce((total, part) => total + (part.cost ?? 0), 0),
+     inputTokens: tokens.input,
+     outputTokens: tokens.output,
+     reasoningTokens: tokens.reasoning,

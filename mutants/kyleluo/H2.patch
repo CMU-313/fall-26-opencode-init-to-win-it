@@ -1,0 +1,13 @@
+diff --git a/.opencode/plugin/session-stats.ts b/.opencode/plugin/session-stats.ts
+index cb343aa..ac79bca 100644
+--- a/.opencode/plugin/session-stats.ts
++++ b/.opencode/plugin/session-stats.ts
+@@ -65,7 +65,7 @@ export function computeStats(messages: SessionMessage[]) {
+     (total, part) => ({
+       input: total.input + finiteNonNegative(part.tokens?.input),
+       output: total.output + finiteNonNegative(part.tokens?.output),
+-      reasoning: total.reasoning + finiteNonNegative(part.tokens?.reasoning),
++      reasoning: total.reasoning + (part.tokens?.reasoning ?? 0),
+       cacheRead: total.cacheRead + finiteNonNegative(part.tokens?.cache?.read),
+       cacheWrite: total.cacheWrite + finiteNonNegative(part.tokens?.cache?.write),
+     }),
