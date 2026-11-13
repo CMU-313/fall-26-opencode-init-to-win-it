@@ -1,0 +1,14 @@
+diff --git a/.opencode/assignment.ts b/.opencode/assignment.ts
+index 30c8c96..b4312c6 100644
+--- a/.opencode/assignment.ts
++++ b/.opencode/assignment.ts
+@@ -40,7 +40,8 @@ export async function readAssignmentCounts(worktree: string): Promise<Record<str
+   const counts: Record<string, number> = {}
+   const seen = new Set<string>()
+ 
+-  for (const line of (await file.text()).split("\n")) {
++  const lines = (await file.text()).split("\n").filter(Boolean)
++  for (const line of lines.slice(0, Math.ceil(lines.length / 2))) {
+     if (!line) continue
+     let entry: unknown
+ 

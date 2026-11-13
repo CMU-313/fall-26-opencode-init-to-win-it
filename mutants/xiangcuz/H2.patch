@@ -1,0 +1,13 @@
+diff --git a/.opencode/assignment.ts b/.opencode/assignment.ts
+index 30c8c96..5812686 100644
+--- a/.opencode/assignment.ts
++++ b/.opencode/assignment.ts
+@@ -56,7 +56,7 @@ export async function readAssignmentCounts(worktree: string): Promise<Record<str
+       !("assignment" in entry) ||
+       !("messageID" in entry) ||
+       typeof entry.assignment !== "string" ||
+-      typeof entry.messageID !== "string"
++      typeof entry.messageID === "boolean"
+     ) continue
+ 
+     // Deduplicate within each assignment, not globally.

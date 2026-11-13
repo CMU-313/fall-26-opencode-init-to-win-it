@@ -210,3 +210,26 @@ test("CLI reads assignment logs and outputs correct counts", async () => {
     await rm(worktree, { recursive: true, force: true })
   }
 })
+test("records assignment queries and reads counts correctly", async () => {
+    const { mkdtemp, mkdir, rm } = await import("node:fs/promises")
+    const { tmpdir } = await import("node:os")
+    const { join } = await import("node:path")
+    const { recordAssignmentQuery, readAssignmentCounts } =
+      await import("../../../../.opencode/assignment")
+
+    const worktree = await mkdtemp(join(tmpdir(), "assignment-cross-"))
+
+    try {
+      await mkdir(join(worktree, ".opencode"))
+
+      await recordAssignmentQuery(worktree, "hw1", "message-1")
+      await recordAssignmentQuery(worktree, "hw2", "message-1")
+
+      expect(await readAssignmentCounts(worktree)).toEqual({
+        hw1: 1,
+        hw2: 1,
+      })
+    } finally {
+      await rm(worktree, { recursive: true, force: true })
+    }
+})

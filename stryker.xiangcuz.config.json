@@ -1,0 +1,22 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "cd packages/opencode && bun test --bail test/cli/assignment-stats.property.test.ts"
+  },
+  "mutate": [
+    ".opencode/assignment.ts:36-72"
+  ],
+  "ignorePatterns": [
+    "packages/console/**"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/xiangcuz/mutation.html"
+  }
+}
